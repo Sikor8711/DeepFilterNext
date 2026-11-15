@@ -1,4 +1,15 @@
 # DeepFilterNet
+
+> [!NOTE]
+> **DeepFilterNext** is a fork of [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet) by
+> Hendrik Schröter, updated for modern PyTorch/torchaudio (2.8 and 2.9+), numpy 2 and
+> Python 3.13/3.14. Audio I/O uses soundfile (libsndfile) instead of the torchaudio I/O functions
+> that torchaudio 2.9 removed. The models, model weights and inference results are unchanged.
+> All credit for DeepFilterNet goes to the original authors (see [Citation Guide](#citation-guide)).
+> The original licenses apply (see [License](#license)).
+> The `deepfilternet` package on PyPI is the upstream release; to use this fork, install it from
+> source (see [Manual Installation](#manual-installation)).
+
 A Low Complexity Speech Enhancement Framework for Full-Band Audio (48kHz) using on Deep Filtering.
 
 ![deepfilternet3](https://user-images.githubusercontent.com/16517898/225623209-a54fea75-ca00-404c-a394-c91d2d1146d2.svg)
