@@ -1,7 +1,3 @@
-// The demo keeps its global state in `static mut` items (single UI/audio thread). Allow the
-// newer `static_mut_refs` lint instead of redesigning that state; behaviour is unchanged.
-#![allow(static_mut_refs)]
-
 use std::env;
 use std::future::Future;
 use std::path::PathBuf;
@@ -80,6 +76,7 @@ pub fn main() -> iced::Result {
     SpecView::run(Settings::default())
 }
 
+// See capture.rs: functions that reference these items allow the `static_mut_refs` lint.
 static mut SPEC_NOISY: Option<Arc<Mutex<SpecImage>>> = None;
 static mut SPEC_ENH: Option<Arc<Mutex<SpecImage>>> = None;
 
@@ -172,6 +169,7 @@ impl Application for SpecView {
     type Theme = Theme;
     type Flags = ();
 
+    #[allow(static_mut_refs)]
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let (s_lsnr, r_lsnr) = unbounded();
         let (s_noisy, r_noisy) = unbounded();
@@ -227,6 +225,7 @@ impl Application for SpecView {
     //     Theme::Dark
     // }
 
+    #[allow(static_mut_refs)]
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::None => (),
@@ -413,6 +412,7 @@ impl SpecView {
         })
     }
 
+    #[allow(static_mut_refs)]
     fn update_noisy(&mut self) -> Option<impl Future<Output = Message>> {
         if self.r_noisy.is_empty() {
             return None;
@@ -429,6 +429,7 @@ impl SpecView {
         })
     }
 
+    #[allow(static_mut_refs)]
     fn update_enh(&mut self) -> Option<impl Future<Output = Message>> {
         if self.r_enh.is_empty() {
             return None;

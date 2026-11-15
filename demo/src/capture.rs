@@ -1,6 +1,3 @@
-// See main.rs: the demo keeps its global state in `static mut` items.
-#![allow(static_mut_refs)]
-
 use std::env;
 use std::fmt::Display;
 use std::io::{self, stdout, Write};
@@ -32,6 +29,8 @@ pub type SendControl = Sender<(DfControl, f32)>;
 pub type RecvControl = Receiver<(DfControl, f32)>;
 
 pub(crate) static INIT_LOGGER: Once = Once::new();
+// The demo keeps its global state in `static mut` items. Functions that reference them allow
+// the newer `static_mut_refs` lint instead of a redesign of that state.
 pub(crate) static mut MODEL_PATH: Option<PathBuf> = None;
 static mut MODEL: Option<DfTract> = None;
 
@@ -58,6 +57,7 @@ pub enum DfControl {
 }
 
 /// Initialize DF model and returns sample rate, frame size, and number of frequency bins
+#[allow(static_mut_refs)]
 fn init_df(model_path: Option<PathBuf>, channels: usize) -> (usize, usize, usize) {
     unsafe {
         if let Some(m) = MODEL.as_ref() {
@@ -79,6 +79,7 @@ fn init_df(model_path: Option<PathBuf>, channels: usize) -> (usize, usize, usize
     (sr, frame_size, freq_size)
 }
 
+#[allow(static_mut_refs)]
 unsafe fn get_frame_size() -> usize {
     let df = MODEL.clone().unwrap();
     df.hop_size
@@ -317,6 +318,7 @@ impl GuiCom {
     }
 }
 
+#[allow(static_mut_refs)]
 fn get_worker_fn(
     mut rb_in: RbCons,
     mut rb_out: RbProd,
@@ -528,6 +530,7 @@ impl DeepFilterCapture {
 #[allow(unused)]
 #[allow(unknown_lints)] // assigning_clones is clippy nightly only
 #[allow(clippy::assigning_clones)]
+#[allow(static_mut_refs)]
 pub fn main() -> Result<()> {
     INIT_LOGGER.call_once(|| {
         env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
