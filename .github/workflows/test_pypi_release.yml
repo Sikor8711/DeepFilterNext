@@ -44,7 +44,8 @@ jobs:
           # The upstream PyPI release uses the torchaudio I/O API, which torchaudio 2.9 removed
           pip install 'torch>=2.8,<2.9' 'torchaudio>=2.8,<2.9' --index-url https://download.pytorch.org/whl/cpu
           pip install deepfilternet onnxruntime
-          pip install -r DeepFilterNet/requirements_eval.txt
+          # Do not install requirements_eval.txt. It requires torch>=2.9 and numpy>=2, which the
+          # upstream release does not support. dnsmos_dns5.py eval-sample does not need it.
           pip install -r DeepFilterNet/requirements_dnsmos.txt
       # Test deepFilter executable
       - name: Test deepFilter script

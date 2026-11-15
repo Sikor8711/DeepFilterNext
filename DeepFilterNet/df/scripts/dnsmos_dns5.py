@@ -16,7 +16,7 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-from df.io import load_audio, load_encoded, resample, save_audio
+from df.io import load_audio, resample, save_audio
 from df.logger import init_logger, log_metrics
 from df.scripts.dnsmos import get_ort_session
 from df.utils import download_file, get_cache_dir
@@ -255,6 +255,10 @@ def eval_ds(args):
 
     import h5py
     import torch
+
+    # The upstream PyPI release of df.io has no load_encoded. Import it here so that the other
+    # commands also run with that release (see .github/workflows/test_pypi_release.yml).
+    from df.io import load_encoded
 
     primary_model_path, p808_model_path = download_onnx_models()
     compute_score = ComputeScore(primary_model_path, p808_model_path)
