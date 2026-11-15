@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-import torchaudio
 from loguru import logger
 from torch import Tensor, nn, optim
 from torch.autograd.anomaly_mode import set_detect_anomaly
@@ -17,6 +16,7 @@ from torch.types import Number
 
 from df.checkpoint import check_patience, load_model, read_cp, write_cp
 from df.config import Csv, config
+from df.io import save_audio
 from df.logger import init_logger, log_metrics, log_model_summary
 from df.loss import Istft, Loss
 from df.lr import cosine_scheduler
@@ -576,15 +576,13 @@ def summary_write(
     def synthesis(x: Tensor) -> Tensor:
         return torch.as_tensor(state.synthesis(make_np(as_complex(x.detach()))))
 
-    torchaudio.save(
-        os.path.join(summary_dir, f"{prefix}_clean_snr{snr}.wav"), synthesis(clean[idx]), p.sr
-    )
-    torchaudio.save(
-        os.path.join(summary_dir, f"{prefix}_noisy_snr{snr}.wav"), synthesis(noisy[idx]), p.sr
-    )
-    torchaudio.save(
-        os.path.join(summary_dir, f"{prefix}_enh_snr{snr}.wav"), synthesis(enh[idx]), p.sr
-    )
+    for name, x in (("clean", clean), ("noisy", noisy), ("enh", enh)):
+        save_audio(
+            os.path.join(summary_dir, f"{prefix}_{name}_snr{snr}.wav"),
+            synthesis(x[idx]),
+            p.sr,
+            dtype=torch.float32,
+        )
     np.savetxt(
         os.path.join(summary_dir, f"{prefix}_lsnr_snr{snr}.txt"),
         lsnr[idx].detach().cpu().numpy(),

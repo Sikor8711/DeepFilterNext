@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 
 import argparse
+import io
 import os
 import time
 import warnings
 from multiprocessing import Pool
-from tempfile import NamedTemporaryFile
 from typing import List, Optional
 
 import h5py as h5
 import numpy as np
+import soundfile as sf
 import torch
-import torchaudio
 from loguru import logger
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
-from df.io import resample
+from df.io import load_audio
 from df.logger import init_logger
 
 
@@ -118,13 +118,17 @@ class PreProcessingDataset(Dataset):
     def read(self, file: str) -> Tensor:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            meta = torchaudio.info(file)
-            if meta.sample_rate != self.sr:
+            meta = sf.info(file)
+            if meta.samplerate != self.sr:
                 # Load as normalized float32 and resample
-                x, sr = torchaudio.load(file, normalize=True)
-                x = resample(x, sr, new_sr=self.sr, method="kaiser_best")
+                x, _ = load_audio(file, sr=self.sr, verbose=False, method="kaiser_best")
             else:
-                x, sr = torchaudio.load(file, normalize=False)
+                # Keep the stored sample format of PCM WAV files (like torchaudio's normalize=False)
+                dtype = "float32"
+                if meta.format == "WAV":
+                    dtype = _RAW_DTYPES.get(meta.subtype, "float32")
+                x, _ = sf.read(file, dtype=dtype, always_2d=True)
+                x = torch.from_numpy(x.T.copy())  # [T, C] -> [C, T]
             if self.mono and x.shape[0] > 1:
                 x = x.mean(0, keepdim=True)
             if x.dim() == 1:
@@ -144,22 +148,42 @@ class PreProcessingDataset(Dataset):
         return len(self.file_names)
 
 
+# Sample formats that are kept when reading PCM WAV files without resampling
+_RAW_DTYPES = {
+    "PCM_16": "int16",
+    "PCM_24": "int32",
+    "PCM_32": "int32",
+    "FLOAT": "float32",
+    "DOUBLE": "float64",
+}
+
+
+def _encode_to_buffer(x: Tensor, sr: int, **kwargs) -> np.ndarray:
+    """Encodes x of shape [C, T] with soundfile and returns the binary buffer as uint8 array."""
+    buf = io.BytesIO()
+    sf.write(buf, x.numpy().T, sr, **kwargs)  # [C, T] -> [T, C]
+    return np.frombuffer(buf.getvalue(), dtype=np.uint8).copy()
+
+
 def encode(x: Tensor, sr: int, codec: str, compression: Optional[int] = None) -> np.ndarray:
     if codec == "vorbis":
-        with NamedTemporaryFile(suffix=".ogg") as tf:
-            torchaudio.save(tf.name, x, sr, format="vorbis", compression=compression)
-            x = np.array(list(tf.read()), dtype=np.uint8)  # Return binary buffer as numpy array
+        # `compression` is the vorbis quality in [-1, 10]. libsndfile uses a compression level in
+        # [0, 1] instead, where 0 is the highest quality.
+        level = None
+        if compression is not None:
+            level = min(max(1.0 - compression / 10.0, 0.0), 1.0)
+        x = _encode_to_buffer(x, sr, format="OGG", subtype="VORBIS", compression_level=level)
     elif codec == "flac":
-        with NamedTemporaryFile(suffix=".flac") as tf:
-            torchaudio.save(
-                tf.name,
-                x,
-                sr,
-                format="flac",
-                compression=compression,
-                bits_per_sample=16,
-            )
-            x = np.array(list(tf.read()), dtype=np.uint8)  # Return binary buffer as numpy array
+        # `compression` is the FLAC compression level in [0, 8]. libsndfile uses [0, 1] instead.
+        level = None
+        if compression is not None:
+            level = min(max(compression / 8.0, 0.0), 1.0)
+        if x.dtype == torch.int32:  # 24 or 32 bit PCM
+            x = x.to(torch.float32) / (1 << 31)
+        if x.dtype != torch.int16:
+            # Convert to 16 bit with saturation (libsndfile would not clip)
+            x = (x * (1 << 15)).round().clamp(-(1 << 15), (1 << 15) - 1).to(torch.int16)
+        x = _encode_to_buffer(x, sr, format="FLAC", subtype="PCM_16", compression_level=level)
     elif codec == "pcm":
         x = x.numpy()
     else:
