@@ -76,6 +76,7 @@ pub fn main() -> iced::Result {
     SpecView::run(Settings::default())
 }
 
+// See capture.rs: functions that reference these items allow the `static_mut_refs` lint.
 static mut SPEC_NOISY: Option<Arc<Mutex<SpecImage>>> = None;
 static mut SPEC_ENH: Option<Arc<Mutex<SpecImage>>> = None;
 
@@ -168,6 +169,7 @@ impl Application for SpecView {
     type Theme = Theme;
     type Flags = ();
 
+    #[allow(static_mut_refs)]
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let (s_lsnr, r_lsnr) = unbounded();
         let (s_noisy, r_noisy) = unbounded();
@@ -223,6 +225,7 @@ impl Application for SpecView {
     //     Theme::Dark
     // }
 
+    #[allow(static_mut_refs)]
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::None => (),
@@ -298,7 +301,7 @@ impl Application for SpecView {
         Command::none()
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         let content = column![row![
             text("DeepFilterNet Demo").size(40).width(Length::Fill),
             button("exit").on_press(Message::Exit)
@@ -409,6 +412,7 @@ impl SpecView {
         })
     }
 
+    #[allow(static_mut_refs)]
     fn update_noisy(&mut self) -> Option<impl Future<Output = Message>> {
         if self.r_noisy.is_empty() {
             return None;
@@ -425,6 +429,7 @@ impl SpecView {
         })
     }
 
+    #[allow(static_mut_refs)]
     fn update_enh(&mut self) -> Option<impl Future<Output = Message>> {
         if self.r_enh.is_empty() {
             return None;
@@ -439,7 +444,7 @@ impl SpecView {
             Message::EnhChanged
         })
     }
-    fn specs(&self) -> Container<Message> {
+    fn specs(&self) -> Container<'_, Message> {
         container(column![
             spec_view("Noisy", self.noisy_img.clone(), 1000, 250),
             spec_view("DeepFilterNet Enhanced", self.enh_img.clone(), 1000, 250),
@@ -447,7 +452,7 @@ impl SpecView {
     }
 }
 
-fn spec_view(title: &str, im: image::Handle, width: u16, height: u16) -> Element<Message> {
+fn spec_view(title: &str, im: image::Handle, width: u16, height: u16) -> Element<'_, Message> {
     column![
         text(title).size(24).width(Length::Fill),
         spec_raw(im, width, height)

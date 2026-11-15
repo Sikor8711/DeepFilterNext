@@ -1,13 +1,13 @@
 import os
 import sys
 
-import torchaudio as ta
-
+from df.io import load_audio
 from df.visualization import plt, spec_figure
 
 
 def main(path: str):
-    audio, sr = ta.load(path)
+    audio, info = load_audio(path)
+    sr = info.sample_rate
     f = plt.figure(figsize=(10, 6))
     f.set_tight_layout(True)
     spec_figure(

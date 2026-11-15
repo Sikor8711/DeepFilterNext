@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::{Mutex, MutexGuard};
 use std::thread;
 use std::time::Instant;
 
@@ -15,16 +16,28 @@ use pyo3::exceptions::{PyRuntimeError, PyStopIteration, PyValueError};
 use pyo3::prelude::*;
 
 #[pymodule]
-fn libdfdata(_py: Python, m: &PyModule) -> PyResult<()> {
+fn libdfdata(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<_FdDataLoader>()?;
     Ok(())
 }
 
 #[pyclass]
 struct _FdDataLoader {
-    loader: DataLoader,
+    // pyo3 requires `Sync` for pyclasses. `DataLoader` holds a `std::sync::mpsc::Receiver`, which
+    // is only `Send`, so wrap it in a `Mutex`. Methods with `&mut self` use `get_mut()` (no lock).
+    loader: Mutex<DataLoader>,
     finished: bool,
     logger: Receiver<LogMessage>,
+}
+
+impl _FdDataLoader {
+    fn loader_mut(&mut self) -> &mut DataLoader {
+        self.loader.get_mut().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn loader(&self) -> MutexGuard<'_, DataLoader> {
+        self.loader.lock().unwrap_or_else(|e| e.into_inner())
+    }
 }
 
 // TODO: Does not work due to pyo3 restrictions; instead return tuples
@@ -57,24 +70,53 @@ struct _FdDataLoader {
 // }
 
 type FdBatch<'py> = (
-    &'py PyArray4<Complex32>, // speech
-    &'py PyArray4<Complex32>, // noisy
-    &'py PyArray4<f32>,       // feat_erb
-    &'py PyArray4<Complex32>, // feat_spec
-    &'py PyArray1<usize>,     // lengths
-    &'py PyArray1<usize>,     // max_freq
-    &'py PyArray1<i8>,        // snr
-    &'py PyArray1<i8>,        // gain
-    &'py PyArray1<f32>,       // Timings until each sample and the overall batch was ready
-    &'py PyArray1<usize>,     // clean ids
+    Bound<'py, PyArray4<Complex32>>, // speech
+    Bound<'py, PyArray4<Complex32>>, // noisy
+    Bound<'py, PyArray4<f32>>,       // feat_erb
+    Bound<'py, PyArray4<Complex32>>, // feat_spec
+    Bound<'py, PyArray1<usize>>,     // lengths
+    Bound<'py, PyArray1<usize>>,     // max_freq
+    Bound<'py, PyArray1<i8>>,        // snr
+    Bound<'py, PyArray1<i8>>,        // gain
+    Bound<'py, PyArray1<f32>>,       // Timings until each sample and the overall batch was ready
+    Bound<'py, PyArray1<usize>>,     // clean ids
 );
 
 #[pymethods]
 impl _FdDataLoader {
     #[allow(clippy::too_many_arguments)]
     #[new]
+    #[pyo3(signature = (
+        ds_dir,
+        config_path,
+        sr,
+        batch_size,
+        fft_size,
+        batch_size_eval=None,
+        max_len_s=None,
+        hop_size=None,
+        nb_erb=None,
+        nb_spec=None,
+        norm_alpha=None,
+        num_threads=None,
+        prefetch=None,
+        p_reverb=None,
+        p_bw_ext=None,
+        p_clipping=None,
+        p_zeroing=None,
+        p_interfer_sp=None,
+        p_air_absorption=None,
+        drop_last=None,
+        overfit=None,
+        seed=None,
+        min_nb_erb_freqs=None,
+        global_sampling_factor=None,
+        snrs=None,
+        gains=None,
+        log_level=None,
+    ))]
     fn new(
-        py: Python,
+        py: Python<'_>,
         ds_dir: &str,
         config_path: &str,
         sr: usize,
@@ -209,7 +251,7 @@ impl _FdDataLoader {
         py.check_signals()?;
         let loader = dl_builder.build().to_py_err()?;
         Ok(_FdDataLoader {
-            loader,
+            loader: Mutex::new(loader),
             finished: false,
             logger: log_receiver,
         })
@@ -217,18 +259,18 @@ impl _FdDataLoader {
 
     fn start_epoch(&mut self, split: &str, seed: usize) -> PyResult<()> {
         self.finished = false;
-        match self.loader.start_epoch(split, seed) {
+        match self.loader_mut().start_epoch(split, seed) {
             Err(e) => Err(PyValueError::new_err(e.to_string())),
             Ok(()) => Ok(()),
         }
     }
 
-    fn get_batch<'py>(&'py mut self, py: Python<'py>) -> PyResult<FdBatch<'py>> {
+    fn get_batch<'py>(&mut self, py: Python<'py>) -> PyResult<FdBatch<'py>> {
         let t0 = Instant::now();
         if self.finished {
             return Err(PyStopIteration::new_err("Epoch finished"));
         }
-        match self.loader.get_batch::<Complex32>().to_py_err()? {
+        match self.loader_mut().get_batch::<Complex32>().to_py_err()? {
             Some(batch) => {
                 let erb = batch.feat_erb.unwrap_or_else(|| ArrayD::zeros(vec![1, 1, 1, 1]));
                 let spec = batch.feat_spec.unwrap_or_else(|| ArrayD::zeros(vec![1, 1, 1, 1]));
@@ -253,24 +295,24 @@ impl _FdDataLoader {
     }
 
     fn cleanup(&mut self) -> PyResult<()> {
-        self.loader.join_fill_thread().to_py_err()?;
+        self.loader_mut().join_fill_thread().to_py_err()?;
         Ok(())
     }
 
     fn dataloader_len(&self, split: &str) -> usize {
-        self.loader.dataloader_len(split)
+        self.loader().dataloader_len(split)
     }
 
     fn dataset_len(&self, split: &str) -> usize {
-        self.loader.dataset_len(split)
+        self.loader().dataset_len(split)
     }
 
     fn set_batch_size(&mut self, batch_size: usize, split: &str) {
-        self.loader.set_batch_size(batch_size, split)
+        self.loader_mut().set_batch_size(batch_size, split)
     }
 
     fn batch_size(&self, split: &str) -> usize {
-        self.loader.batch_size(split)
+        self.loader().batch_size(split)
     }
 
     fn get_log_messages(&mut self) -> Vec<(String, String, Option<String>, Option<u32>)> {

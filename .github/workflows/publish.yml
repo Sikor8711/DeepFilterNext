@@ -54,18 +54,15 @@ jobs:
       fail-fast: false
       matrix:
         python:
-          - version: "3.8"
-            tag: "38"
-            abi: cp38-cp38
-          - version: "3.9"
-            tag: "39"
-            abi: cp39-cp39
-          - version: "3.10"
-            tag: "310"
-            abi: cp310-cp310
-          - version: "3.11"
-            tag: "311"
-            abi: cp311-cp311
+          - version: "3.12"
+            tag: "312"
+            abi: cp312-cp312
+          - version: "3.13"
+            tag: "313"
+            abi: cp313-cp313
+          - version: "3.14"
+            tag: "314"
+            abi: cp314-cp314
         df_wheel: ["pyDF", "pyDF-data"]
         build: [linux-x86, linux-arm-aarch64, macos-x86, macos-aarch64, win-msvc]
         include:
@@ -83,10 +80,10 @@ jobs:
             # target: armv7-unknown-linux-gnueabihf
             # container: ghcr.io/rust-cross/manylinux_2_28-cross:armv7
           - build: macos-x86
-            os: macos-13
+            os: macos-14
             target: x86_64-apple-darwin
           - build: macos-aarch64
-            os: macos-13
+            os: macos-14
             target: aarch64-apple-darwin
           - build: win-msvc
             os: windows-2022
@@ -193,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10"] # wheel will be independent of python version
+        python-version: ["3.12"] # wheel will be independent of python version
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -252,12 +249,12 @@ jobs:
         manylinux: [2014]
         python:
           # CPython
-          - version: "3.8"
-            abi: cp38-cp38
-          - version: "3.9"
-            abi: cp39-cp39
-          - version: "3.10"
-            abi: cp310-cp310
+          - version: "3.12"
+            abi: cp312-cp312
+          - version: "3.13"
+            abi: cp313-cp313
+          - version: "3.14"
+            abi: cp314-cp314
         platform:
           - target: aarch64-unknown-linux-gnu
             arch: aarch64
@@ -281,7 +278,7 @@ jobs:
         run: |
           sudo python3 -m pip install maturin
           maturin build --release -o dist \
-            -i python3.9 \
+            -i python${{ matrix.python.version }} \
             --target ${{ matrix.platform.target }} \
             --manylinux ${{ matrix.manylinux }} \
             -m pyDF/Cargo.toml
@@ -322,10 +319,10 @@ jobs:
             os: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
           - build: macos-x86
-            os: macos-13
+            os: macos-14
             target: x86_64-apple-darwin
           - build: macos-aarch64
-            os: macos-13
+            os: macos-14
             target: aarch64-apple-darwin
           - build: win-msvc
             os: windows-2022

@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-import io
 import os
 import sys
 
 import h5py
-import numpy as np
 import torch
 import torch.nn.functional as F
-import torchaudio as ta
 from torch import Tensor
 
+from df.io import load_encoded
 from df.scripts.prepare_data import encode
 
 
@@ -22,12 +20,6 @@ def windowed_energy(x: Tensor, ws: int, hop) -> Tensor:
     if x.dim() > 1:
         x = x.mean(0)
     return x
-
-
-def load_encoded(buffer: np.ndarray, codec: str):
-    # In some rare cases, torch audio failes to fully decode vorbis resulting in a way shorter signal
-    wav, _ = ta.load(io.BytesIO(buffer[...].tobytes()), format=codec.lower())
-    return wav
 
 
 def trim(audio: Tensor, sr: int) -> (Tensor, bool):
@@ -57,9 +49,10 @@ def trim(audio: Tensor, sr: int) -> (Tensor, bool):
 def main(path: str):
     assert os.path.isfile(path)
     group = sys.argv[2] if len(sys.argv) > 2 else "speech"
-    with h5py.File(path, "r", libver="latest") as fr, h5py.File(
-        path.replace(".hdf5", "_trimmed.hdf5"), "w", libver="latest"
-    ) as fw:
+    with (
+        h5py.File(path, "r", libver="latest") as fr,
+        h5py.File(path.replace(".hdf5", "_trimmed.hdf5"), "w", libver="latest") as fw,
+    ):
         assert group in fr
         grp = fw.create_group(group)
         sr = int(fr.attrs["sr"])
@@ -76,7 +69,7 @@ def main(path: str):
                 if audio.dim() == 1:
                     audio.unsqueeze_(0)
             else:
-                audio = load_encoded(sample, codec)
+                audio = load_encoded(sample)
             audio, got_trimmed = trim(audio, sr)
             if audio.numel() == 0:
                 continue  # Everything got trimmed

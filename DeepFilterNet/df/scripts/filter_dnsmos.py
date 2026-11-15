@@ -1,24 +1,17 @@
 #!/usr/bin/env python3
 
 import argparse
-import io
 import os
 import sys
 
 import h5py
 import numpy as np
 import torch
-import torchaudio as ta
 from torch import Tensor
 
 import df.scripts.dnsmos as dnsmos
-from df.io import resample
+from df.io import load_encoded, resample
 from df.scripts.prepare_data import encode
-
-
-def load_encoded(buffer: np.ndarray, codec: str) -> Tensor:
-    wav, _ = ta.load(io.BytesIO(buffer[...].tobytes()), format=codec)
-    return wav
 
 
 def to_f32(audio: Tensor) -> Tensor:
@@ -65,7 +58,7 @@ def main(args):
                 if codec == "pcm":
                     audio = torch.from_numpy(encoded)
                 else:
-                    audio = load_encoded(encoded, codec=codec)
+                    audio = load_encoded(encoded)
                 print(f"{key} ...", end="", flush=True)
                 assert audio.dim() <= 2
                 # For now, only single channel is supported
@@ -74,9 +67,7 @@ def main(args):
                 audio = to_f32(audio)
                 for ch in range(audio.shape[0]):
                     resampled = resample(audio[ch], sr, dnsmos.SR)
-                    (ch_sig, ch_bak, ch_ovr) = dnsmos.dnsmos_local(
-                        resampled, onnx_sig, onnx_bak_ovr
-                    )
+                    ch_sig, ch_bak, ch_ovr = dnsmos.dnsmos_local(resampled, onnx_sig, onnx_bak_ovr)
                 sig, bak, ovr = np.mean(ch_sig), np.mean(ch_bak), np.mean(ch_ovr)
                 print(f" sig: {sig:.2f}, bak: {bak:.2f}, ovr: {ovr:.2f} ... ", end="")
                 if sig > t[0] and bak > t[1] and ovr > t[2]:

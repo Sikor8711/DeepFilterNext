@@ -1,20 +1,13 @@
 import argparse
-import io
 import os
 import random
 import sys
 from typing import Optional
 
 import h5py
-import numpy as np
 import torch
-import torchaudio as ta
 
-
-def load_encoded(buffer: np.ndarray, codec: str):
-    # In some rare cases, torch audio failes to fully decode vorbis resulting in a way shorter signal
-    wav, _ = ta.load(io.BytesIO(buffer[...].tobytes()), format=codec.lower())
-    return wav
+from df.io import load_encoded, save_audio
 
 
 def save_sample(group, key: str, codec: str, out_dir: str, sr: int, n_channels: Optional[int]):
@@ -24,7 +17,7 @@ def save_sample(group, key: str, codec: str, out_dir: str, sr: int, n_channels: 
         if sample.dim() == 1:
             sample.unsqueeze_(0)
     else:
-        sample = load_encoded(ds, codec)
+        sample = load_encoded(ds)
     outname = f"{out_dir}/{key}"
     if not outname.endswith(".wav"):
         outname += ".wav"
@@ -32,7 +25,7 @@ def save_sample(group, key: str, codec: str, out_dir: str, sr: int, n_channels: 
     if n_channels is not None and n_channels > 0:
         assert sample.dim() == 2, f"but got sample with shape {sample.shape}"
         sample = sample[:n_channels]
-    ta.save(outname, sample, sample_rate=sr)
+    save_audio(outname, sample, sr, dtype=sample.dtype)
 
 
 def main():

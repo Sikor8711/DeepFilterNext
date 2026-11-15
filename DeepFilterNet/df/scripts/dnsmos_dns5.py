@@ -250,21 +250,15 @@ def eval_dir_dnsmos(args):
     print_csv(df)
 
 
-def load_encoded(buffer: np.ndarray, codec: str):
-    import io
-
-    import torchaudio as ta
-
-    # In some rare cases, torch audio failes to fully decode vorbis resulting in a way shorter signal
-    wav, _ = ta.load(io.BytesIO(buffer[...].tobytes()), format=codec.lower())
-    return wav
-
-
 def eval_ds(args):
     from tempfile import NamedTemporaryFile
 
     import h5py
     import torch
+
+    # The upstream PyPI release of df.io has no load_encoded. Import it here so that the other
+    # commands also run with that release (see .github/workflows/test_pypi_release.yml).
+    from df.io import load_encoded
 
     primary_model_path, p808_model_path = download_onnx_models()
     compute_score = ComputeScore(primary_model_path, p808_model_path)
@@ -300,7 +294,7 @@ def eval_ds(args):
                     if audio.dim() == 1:
                         audio.unsqueeze_(0)
                 else:
-                    audio = load_encoded(sample, codec)
+                    audio = load_encoded(sample)
                 if SLEEP_MS > 0:
                     sleep(SLEEP_MS / 1000)
                 rows.append(compute_score_audio(audio, sr, fname=n))

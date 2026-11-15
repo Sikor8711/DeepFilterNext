@@ -5,8 +5,8 @@ from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torchaudio
 
+from df.io import load_audio
 from df.visualization import spec_figure
 
 should_stop = False
@@ -14,7 +14,6 @@ should_stop = False
 
 def main():
     """Poor man's tensorboard summaries"""
-    global should_stop
     parser = argparse.ArgumentParser()
     parser.add_argument("summary_dir")
     parser.add_argument("--snr", default=0, type=int)
@@ -58,14 +57,19 @@ def main():
         plt.show()
 
 
+def load_with_sr(path: str):
+    audio, info = load_audio(path, verbose=False)
+    return audio, info.sample_rate
+
+
 def plot(f, ax, summary_dir, snr, update_handle=None) -> int:
-    clean, sr = torchaudio.load(os.path.join(summary_dir, f"clean_snr{snr}.wav"))
+    clean, sr = load_with_sr(os.path.join(summary_dir, f"clean_snr{snr}.wav"))
     spec_figure(clean, sr, from_audio=True, ax=ax[0], figure=f, ylabel="Frequency [kHz]", kHz=True)
-    noisy, sr = torchaudio.load(os.path.join(summary_dir, f"noisy_snr{snr}.wav"))
+    noisy, sr = load_with_sr(os.path.join(summary_dir, f"noisy_snr{snr}.wav"))
     spec_figure(noisy, sr, from_audio=True, ax=ax[1], figure=f, ylabel="Frequency [kHz]", kHz=True)
-    ideal, sr = torchaudio.load(os.path.join(summary_dir, f"idealmask_snr{snr}.wav"))
+    ideal, sr = load_with_sr(os.path.join(summary_dir, f"idealmask_snr{snr}.wav"))
     spec_figure(ideal, sr, from_audio=True, ax=ax[2], figure=f, ylabel="Frequency [kHz]", kHz=True)
-    enh, sr = torchaudio.load(os.path.join(summary_dir, f"enh_snr{snr}.wav"))
+    enh, sr = load_with_sr(os.path.join(summary_dir, f"enh_snr{snr}.wav"))
     spec_figure(enh, sr, from_audio=True, ax=ax[3], figure=f, ylabel="Frequency [kHz]", kHz=True)
     lsnr = np.loadtxt(os.path.join(summary_dir, f"lsnr_snr{snr}.txt"))
     T = enh.shape[-1] / sr
