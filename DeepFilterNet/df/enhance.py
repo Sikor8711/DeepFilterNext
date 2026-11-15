@@ -308,7 +308,7 @@ def setup_df_argument_parser(
         default=None,
         help="Model directory containing checkpoints and config. "
         "To load a pretrained model, you may just provide the model name, e.g. `DeepFilterNet`. "
-        "By default, the pretrained DeepFilterNet2 model is loaded.",
+        f"By default, the pretrained {DEFAULT_MODEL} model is loaded.",
     )
     parser.add_argument(
         "--pf",
