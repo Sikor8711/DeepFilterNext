@@ -1,52 +1,89 @@
+import io
 import os
+from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple, Union
 
+import soundfile as sf
 import torch
-import torchaudio as ta
 from loguru import logger
 from numpy import ndarray
 from torch import Tensor
-
-try:
-    from torchaudio import AudioMetaData
-
-    TA_RESAMPLE_SINC = "sinc_interp_hann"
-    TA_RESAMPLE_KAISER = "sinc_interp_kaiser"
-except ImportError:
-    from torchaudio.backend.common import AudioMetaData
-
-    TA_RESAMPLE_SINC = "sinc_interpolation"
-    TA_RESAMPLE_KAISER = "kaiser_window"
+from torchaudio.functional import resample as ta_resample
 
 from df.logger import warn_once
 from df.utils import download_file, get_cache_dir, get_git_root
+
+TA_RESAMPLE_SINC = "sinc_interp_hann"
+TA_RESAMPLE_KAISER = "sinc_interp_kaiser"
+
+_SUBTYPE_BITS = {
+    "PCM_S8": 8,
+    "PCM_U8": 8,
+    "PCM_16": 16,
+    "PCM_24": 24,
+    "PCM_32": 32,
+    "FLOAT": 32,
+    "DOUBLE": 64,
+}
+
+
+@dataclass
+class AudioMetaData:
+    """Replacement for torchaudio.AudioMetaData (removed in torchaudio 2.9)."""
+
+    sample_rate: int
+    num_frames: int
+    num_channels: int
+    bits_per_sample: int
+    encoding: str
+
+
+def audio_info(file: str) -> AudioMetaData:
+    i = sf.info(file)
+    return AudioMetaData(
+        sample_rate=i.samplerate,
+        num_frames=i.frames,
+        num_channels=i.channels,
+        bits_per_sample=_SUBTYPE_BITS.get(i.subtype, 0),
+        encoding=i.subtype,
+    )
 
 
 def load_audio(
     file: str, sr: Optional[int] = None, verbose=True, **kwargs
 ) -> Tuple[Tensor, AudioMetaData]:
-    """Loads an audio file using torchaudio.
+    """Loads an audio file using soundfile.
 
     Args:
         file (str): Path to an audio file.
         sr (int): Optionally resample audio to specified target sampling rate.
-        **kwargs: Passed to torchaudio.load(). Depends on the backend. The resample method
-            may be set via `method` which is passed to `resample()`.
+        **kwargs: Supported: `num_frames`, `frame_offset`, `channels_first`, `method`
+            (resample method passed to `resample()`).
 
     Returns:
         audio (Tensor): Audio tensor of shape [C, T], if channels_first=True (default).
         info (AudioMetaData): Meta data of the original audio file. Contains the original sr.
     """
-    ikwargs = {}
-    if "format" in kwargs:
-        ikwargs["format"] = kwargs["format"]
     rkwargs = {}
     if "method" in kwargs:
         rkwargs["method"] = kwargs.pop("method")
-    info: AudioMetaData = ta.info(file, **ikwargs)
-    if "num_frames" in kwargs and sr is not None:
-        kwargs["num_frames"] *= info.sample_rate // sr
-    audio, orig_sr = ta.load(file, **kwargs)
+    num_frames = kwargs.pop("num_frames", -1)
+    frame_offset = kwargs.pop("frame_offset", 0)
+    channels_first = kwargs.pop("channels_first", True)
+    kwargs.pop("format", None)
+    if kwargs:
+        warn_once(f"load_audio: ignoring unsupported arguments {list(kwargs)}")
+
+    info = audio_info(file)
+    if num_frames > 0 and sr is not None:
+        # num_frames is given at the target sr; convert to the file's sr
+        num_frames = round(num_frames * info.sample_rate / sr)
+
+    data, orig_sr = sf.read(
+        file, frames=num_frames, start=frame_offset, dtype="float32", always_2d=True
+    )
+    audio = torch.from_numpy(data.T.copy())  # [T, C] -> [C, T]
+
     if sr is not None and orig_sr != sr:
         if verbose:
             warn_once(
@@ -54,6 +91,8 @@ def load_audio(
                 "Resampling..."
             )
         audio = resample(audio, orig_sr, sr, **rkwargs)
+    if not channels_first:
+        audio = audio.T
     return audio.contiguous(), info
 
 
@@ -74,20 +113,44 @@ def save_audio(
         outpath = os.path.join(output_dir, os.path.basename(outpath))
     if log:
         logger.info(f"Saving audio file '{outpath}'")
-    audio = torch.as_tensor(audio)
+    audio = torch.as_tensor(audio).detach().cpu()
     if audio.ndim == 1:
-        audio.unsqueeze_(0)
+        audio = audio.unsqueeze(0)
     if dtype == torch.int16 and audio.dtype != torch.int16:
-        audio = (audio * (1 << 15)).to(torch.int16)
+        audio = (audio * (1 << 15)).clamp(-(1 << 15), (1 << 15) - 1).to(torch.int16)
     if dtype == torch.float32 and audio.dtype != torch.float32:
         audio = audio.to(torch.float32) / (1 << 15)
-    ta.save(outpath, audio, sr)
+
+    if audio.dtype == torch.int16:
+        subtype = "PCM_16"
+    elif audio.dtype == torch.int32:
+        subtype = "PCM_32"
+    else:
+        audio = audio.to(torch.float32)
+        subtype = "FLOAT"
+    # Container formats such as FLAC or OGG do not support every subtype; use their default then.
+    fmt = os.path.splitext(outpath)[1].lstrip(".").upper()
+    if fmt in sf.available_formats() and not sf.check_format(fmt, subtype):
+        subtype = sf.default_subtype(fmt)
+    sr = int(sr)  # May be a 1-element tensor, e.g. when collated by a torch DataLoader
+    sf.write(outpath, audio.T.numpy(), sr, subtype=subtype)  # [C, T] -> [T, C]
 
 
-try:
-    from torchaudio.functional import resample as ta_resample
-except ImportError:
-    from torchaudio.compliance.kaldi import resample_waveform as ta_resample  # type: ignore
+def load_encoded(buffer: Union[ndarray, bytes], codec: Optional[str] = None) -> Tensor:
+    """Decodes an encoded in-memory audio buffer, e.g. a vorbis or flac sample from an HDF5 dataset.
+
+    Args:
+        buffer (ndarray, bytes): Encoded bytes or a uint8 array (or h5py dataset) containing them.
+        codec (str): Codec of the buffer. Only for reference, libsndfile detects the container
+            format from the stream header.
+
+    Returns:
+        audio (Tensor): float32 audio tensor of shape [C, T].
+    """
+    if not isinstance(buffer, (bytes, bytearray)):
+        buffer = buffer[...].tobytes()
+    data, _ = sf.read(io.BytesIO(buffer), dtype="float32", always_2d=True)
+    return torch.from_numpy(data.T.copy())  # [T, C] -> [C, T]
 
 
 def get_resample_params(method: str) -> Dict[str, Any]:
