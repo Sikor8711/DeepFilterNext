@@ -16,7 +16,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9"]
+        # ubuntu-latest no longer provides Python 3.9. The upstream deepfilterlib wheels stop at 3.11.
+        python: ["3.11"]
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
     defaults:
       run:
@@ -40,7 +41,8 @@ jobs:
           pip install msvc-runtime
       - name: Install DeepFilterNet and Deps
         run: |
-          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          # The upstream PyPI release uses the torchaudio I/O API, which torchaudio 2.9 removed
+          pip install 'torch>=2.8,<2.9' 'torchaudio>=2.8,<2.9' --index-url https://download.pytorch.org/whl/cpu
           pip install deepfilternet onnxruntime
           pip install -r DeepFilterNet/requirements_eval.txt
           pip install -r DeepFilterNet/requirements_dnsmos.txt
