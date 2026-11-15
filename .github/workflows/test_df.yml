@@ -24,6 +24,7 @@ jobs:
       matrix:
         include:
           - os: "ubuntu-latest"
+            python: "3.12"
     defaults:
       run:
         shell: bash
@@ -66,7 +67,7 @@ jobs:
         with:
           cache: 'pip'
           cache-dependency-path: '**/pyproject.toml'
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - name: Load cached Poetry installation
         if: matrix.os != 'windows-latest'
         uses: actions/cache@v4
@@ -95,7 +96,7 @@ jobs:
             ~/.cache/DeepFilterNet
             .venv
             DeepFilterNet/.venv
-          key: venv-${{ runner.os }}-${{ matrix.python }}-${{ hashFiles('**/pyproject.toml') }}
+          key: venv-${{ runner.os }}-${{ matrix.python }}-${{ hashFiles('**/pyproject.toml', '**/poetry.lock') }}
 
       # Install DeepFilterNet and dependencies
       - name: Install runtime dependencies and DeepFilterNet
