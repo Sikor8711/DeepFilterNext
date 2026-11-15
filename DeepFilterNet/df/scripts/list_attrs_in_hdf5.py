@@ -34,7 +34,7 @@ for f in args.hdf5:
                         if audio.dim() == 1:
                             audio.unsqueeze_(0)
                     else:
-                        audio = load_encoded(sample, codec)
+                        audio = load_encoded(sample)
                     total_hours += audio.shape[-1] / sr / 60 / 60
 
 if args.hours:

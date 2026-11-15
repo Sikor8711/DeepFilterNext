@@ -69,7 +69,7 @@ def main(path: str):
                 if audio.dim() == 1:
                     audio.unsqueeze_(0)
             else:
-                audio = load_encoded(sample, codec)
+                audio = load_encoded(sample)
             audio, got_trimmed = trim(audio, sr)
             if audio.numel() == 0:
                 continue  # Everything got trimmed

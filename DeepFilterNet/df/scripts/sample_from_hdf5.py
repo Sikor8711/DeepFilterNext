@@ -17,7 +17,7 @@ def save_sample(group, key: str, codec: str, out_dir: str, sr: int, n_channels: 
         if sample.dim() == 1:
             sample.unsqueeze_(0)
     else:
-        sample = load_encoded(ds, codec)
+        sample = load_encoded(ds)
     outname = f"{out_dir}/{key}"
     if not outname.endswith(".wav"):
         outname += ".wav"

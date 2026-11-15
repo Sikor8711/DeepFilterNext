@@ -294,7 +294,7 @@ def eval_ds(args):
                     if audio.dim() == 1:
                         audio.unsqueeze_(0)
                 else:
-                    audio = load_encoded(sample, codec)
+                    audio = load_encoded(sample)
                 if SLEEP_MS > 0:
                     sleep(SLEEP_MS / 1000)
                 rows.append(compute_score_audio(audio, sr, fname=n))

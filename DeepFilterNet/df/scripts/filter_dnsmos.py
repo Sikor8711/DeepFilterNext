@@ -58,7 +58,7 @@ def main(args):
                 if codec == "pcm":
                     audio = torch.from_numpy(encoded)
                 else:
-                    audio = load_encoded(encoded, codec=codec)
+                    audio = load_encoded(encoded)
                 print(f"{key} ...", end="", flush=True)
                 assert audio.dim() <= 2
                 # For now, only single channel is supported

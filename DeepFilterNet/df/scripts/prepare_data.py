@@ -16,7 +16,7 @@ from loguru import logger
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
-from df.io import load_audio
+from df.io import audio_info, load_audio, read_audio, saturate_int16
 from df.logger import init_logger
 
 
@@ -118,17 +118,12 @@ class PreProcessingDataset(Dataset):
     def read(self, file: str) -> Tensor:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            meta = sf.info(file)
-            if meta.samplerate != self.sr:
+            if audio_info(file).sample_rate != self.sr:
                 # Load as normalized float32 and resample
                 x, _ = load_audio(file, sr=self.sr, verbose=False, method="kaiser_best")
             else:
                 # Keep the stored sample format of PCM WAV files (like torchaudio's normalize=False)
-                dtype = "float32"
-                if meta.format == "WAV":
-                    dtype = _RAW_DTYPES.get(meta.subtype, "float32")
-                x, _ = sf.read(file, dtype=dtype, always_2d=True)
-                x = torch.from_numpy(x.T.copy())  # [T, C] -> [C, T]
+                x, _ = read_audio(file, raw=True)
             if self.mono and x.shape[0] > 1:
                 x = x.mean(0, keepdim=True)
             if x.dim() == 1:
@@ -146,16 +141,6 @@ class PreProcessingDataset(Dataset):
 
     def __len__(self):
         return len(self.file_names)
-
-
-# Sample formats that are kept when reading PCM WAV files without resampling
-_RAW_DTYPES = {
-    "PCM_16": "int16",
-    "PCM_24": "int32",
-    "PCM_32": "int32",
-    "FLOAT": "float32",
-    "DOUBLE": "float64",
-}
 
 
 def _encode_to_buffer(x: Tensor, sr: int, **kwargs) -> np.ndarray:
@@ -185,7 +170,7 @@ def encode(x: Tensor, sr: int, codec: str, compression: Optional[int] = None) ->
             x = x.to(torch.float32) / (1 << 31)
         if x.dtype != torch.int16:
             # Convert to 16 bit with saturation (libsndfile would not clip)
-            x = (x * (1 << 15)).round().clamp(-(1 << 15), (1 << 15) - 1).to(torch.int16)
+            x = saturate_int16((x * (1 << 15)).round())
         x = _encode_to_buffer(x, sr, format="FLAC", subtype="PCM_16", compression_level=level)
     elif codec == "pcm":
         x = x.numpy()
