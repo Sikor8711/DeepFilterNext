@@ -7,7 +7,7 @@ numpy>=2
 ptflops==0.7.2.2
 requests
 packaging
-soundfile>=0.12
+soundfile>=0.13
 pystoi
 pesq
 scipy

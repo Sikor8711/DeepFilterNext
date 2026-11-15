@@ -9,4 +9,4 @@ ptflops==0.7.2.2
 requests
 packaging
 sympy
-soundfile>=0.12
+soundfile>=0.13
