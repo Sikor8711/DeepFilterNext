@@ -24,8 +24,6 @@ jobs:
       matrix:
         include:
           - os: "ubuntu-latest"
-          # - os: "macos-latest"  # Fails to install hdf5 from git
-          - os: "windows-latest"
     defaults:
       run:
         shell: bash
