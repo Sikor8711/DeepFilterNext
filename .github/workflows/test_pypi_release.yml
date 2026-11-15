@@ -37,11 +37,10 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
-          pip install soundfile
           pip install msvc-runtime
       - name: Install DeepFilterNet and Deps
         run: |
-          pip install torch torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
           pip install deepfilternet onnxruntime
           pip install -r DeepFilterNet/requirements_eval.txt
           pip install -r DeepFilterNet/requirements_dnsmos.txt

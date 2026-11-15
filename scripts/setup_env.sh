@@ -1,17 +1,19 @@
 #!/bin/sh
 
-pytorch_v="1.12"
-cuda_version=11.3
-PYTHON_V=3.9
+pytorch_v="2.8"
+cuda_version=12.8
+PYTHON_V=3.12
 MINICONDA_DIR=${MINICONDA_DIR:-"$HOME/miniconda"}
 
 PYTORCH_NIGHTLY=${PYTORCH_NIGHTLY:-0}
+# PyTorch wheels are installed via pip, since PyTorch no longer publishes conda packages.
+cuda_tag="cu$(echo "$cuda_version" | tr -d .)"
 if [ "$PYTORCH_NIGHTLY" -eq 1 ]; then
   nightly="-nightly"
-  pytorch_v_arg="pytorch"
+  torch_pip_args="--pre torch torchaudio --index-url https://download.pytorch.org/whl/nightly/$cuda_tag"
   echo Running on pytorch nightly
 else
-  pytorch_v_arg="pytorch=$pytorch_v"
+  torch_pip_args="torch>=$pytorch_v torchaudio>=$pytorch_v --index-url https://download.pytorch.org/whl/$cuda_tag"
 fi
 INSTALL_LIBDF=${INSTALL_LIBDF:-1}
 INSTALL_PYDEPS=${INSTALL_PYDEPS:-0}
@@ -68,10 +70,10 @@ setup_env() {
     conda create -y -q -p "$env_path" \
       python=$PYTHON_V \
       patchelf \
-      "$pytorch_v_arg" \
-      torchaudio \
-      cudatoolkit=$cuda_version -c "pytorch$nightly" -c conda-forge
+      -c conda-forge
     conda activate "$env"
+    # shellcheck disable=SC2086
+    pip install $torch_pip_args
 
     INSTALL_LIBDF=1
     INSTALL_PYDEPS=1

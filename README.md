@@ -86,8 +86,9 @@ This framework supports Linux, MacOS and Windows. Training is only tested under 
 
 Install the DeepFilterNet Python wheel via pip:
 ```bash
-# Install cpu/cuda pytorch (>=1.9) dependency from pytorch.org, e.g.:
-pip install torch torchaudio -f https://download.pytorch.org/whl/cpu/torch_stable.html
+# Install cpu/cuda pytorch dependency from pytorch.org, e.g.:
+# (the upstream PyPI release requires torchaudio < 2.9; for newer versions see Manual Installation)
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 # Install DeepFilterNet
 pip install deepfilternet
 # Or install DeepFilterNet including data loading functionality for training (Linux only)
@@ -109,8 +110,9 @@ Installation of python dependencies and libDF:
 ```bash
 cd path/to/DeepFilterNet/  # cd into repository
 # Recommended: Install or activate a python env
-# Mandatory: Install cpu/cuda pytorch (>=1.8) dependency from pytorch.org, e.g.:
-pip install torch torchaudio -f https://download.pytorch.org/whl/cpu/torch_stable.html
+# Mandatory: Install cpu/cuda/rocm pytorch (>=2.8) dependency from pytorch.org, e.g.:
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+# For GPUs use e.g. https://download.pytorch.org/whl/cu128 (NVIDIA) or .../whl/rocm6.4 (AMD)
 # Install build dependencies used to compile libdf and DeepFilterNet python wheels
 pip install maturin poetry
 
