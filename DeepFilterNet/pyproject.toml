@@ -25,14 +25,14 @@ include = [
 [tool.poetry.dependencies]
 deepfilterlib = { path = "../pyDF/" }
 deepfilterdataloader = { path = "../pyDF-data/", optional = true }
-python = ">=3.8,<4.0"
-numpy = ">=1.22,<2.0"
+python = ">=3.9,<4.0"
+numpy = ">=1.22"
 loguru = ">=0.5"
 appdirs = "^1.4"
 requests = "^2.27"
-packaging = ">=23,<25"
+packaging = ">=23"
 sympy = ">=1.6"
-soundfile = { version = ">=0.10,<0.13", optional = true }
+soundfile = ">=0.12"
 icecream = { version = ">=2,<3", optional = true }
 pystoi = { version = ">=0.3,<0.5", optional = true }
 pesq = { version = ">=0.0.3,<0.0.5", optional = true }
@@ -42,7 +42,6 @@ onnxruntime = { version = "^1.15", optional = true }
 [tool.poetry.extras]
 train = ["deepfilterdataloader", "icecream"]
 eval = ["pystoi", "pesq", "scipy"]
-soundfile = ["soundfile"]
 dnsmos-local = ["onnxruntime"]
 
 [tool.poetry.scripts]
@@ -53,9 +52,9 @@ deep-filter-py = "df.enhance:run"
 poethepoet = "^0.26"
 
 [tool.poe.tasks]
-install-torch-cuda11 = "pip install torch==2.1+cu118 torchaudio==2.1 --extra-index-url https://download.pytorch.org/whl/cu118"
-install-torch-cuda12 = "pip install torch==2.1+cu121 torchaudio==2.1 --extra-index-url https://download.pytorch.org/whl/cu121"
-install-torch-cpu = "pip install torch==2.1+cpu torchaudio==2.1 --extra-index-url https://download.pytorch.org/whl/cpu"
+install-torch-cpu = "pip install 'torch>=2.8' 'torchaudio>=2.8' --index-url https://download.pytorch.org/whl/cpu"
+install-torch-cu128 = "pip install 'torch>=2.8' 'torchaudio>=2.8' --index-url https://download.pytorch.org/whl/cu128"
+install-torch-rocm64 = "pip install 'torch>=2.8' 'torchaudio>=2.8' --index-url https://download.pytorch.org/whl/rocm6.4"
 install-eval-utils = "python -m pip install -r requirements_eval.txt"
 install-dnsmos-utils = "python -m pip install -r requirements_dnsmos.txt"
 
@@ -65,7 +64,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 100
-target-version = ["py38", "py39", "py310"]
+target-version = ["py39", "py310", "py311", "py312", "py313"]
 include = '\.pyi?$'
 
 [tool.isort]
