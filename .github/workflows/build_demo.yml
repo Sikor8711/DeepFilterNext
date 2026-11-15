@@ -16,7 +16,7 @@ jobs:
         include:
           - os: ubuntu-22.04
             rust: nightly
-          - os: macos-14
+          - os: macos-latest
             rust: nightly
           - os: windows-2022
             rust: nightly
