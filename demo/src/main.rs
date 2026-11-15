@@ -1,3 +1,7 @@
+// The demo keeps its global state in `static mut` items (single UI/audio thread). Allow the
+// newer `static_mut_refs` lint instead of redesigning that state; behaviour is unchanged.
+#![allow(static_mut_refs)]
+
 use std::env;
 use std::future::Future;
 use std::path::PathBuf;
@@ -298,7 +302,7 @@ impl Application for SpecView {
         Command::none()
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         let content = column![row![
             text("DeepFilterNet Demo").size(40).width(Length::Fill),
             button("exit").on_press(Message::Exit)
@@ -439,7 +443,7 @@ impl SpecView {
             Message::EnhChanged
         })
     }
-    fn specs(&self) -> Container<Message> {
+    fn specs(&self) -> Container<'_, Message> {
         container(column![
             spec_view("Noisy", self.noisy_img.clone(), 1000, 250),
             spec_view("DeepFilterNet Enhanced", self.enh_img.clone(), 1000, 250),
@@ -447,7 +451,7 @@ impl SpecView {
     }
 }
 
-fn spec_view(title: &str, im: image::Handle, width: u16, height: u16) -> Element<Message> {
+fn spec_view(title: &str, im: image::Handle, width: u16, height: u16) -> Element<'_, Message> {
     column![
         text(title).size(24).width(Length::Fill),
         spec_raw(im, width, height)
