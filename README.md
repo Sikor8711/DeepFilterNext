@@ -84,7 +84,7 @@ If you want to use the pytorch backend e.g. for GPU processing, see further belo
 
 ### DeepFilterNet Framework
 
-This framework supports Linux, MacOS and Windows. Training is only tested under Linux. The framework is structured as follows:
+This fork supports and tests Linux only. MacOS and Windows are not tested. The framework is structured as follows:
 
 * `libDF` contains Rust code used for data loading and augmentation.
 * `DeepFilterNet` contains DeepFilterNet code training, evaluation and visualization as well as pretrained model weights.
