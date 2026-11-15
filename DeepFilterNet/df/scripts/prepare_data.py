@@ -168,9 +168,12 @@ def _encode_to_buffer(x: Tensor, sr: int, **kwargs) -> np.ndarray:
 def encode(x: Tensor, sr: int, codec: str, compression: Optional[int] = None) -> np.ndarray:
     if codec == "vorbis":
         # `compression` is the vorbis quality in [-1, 10]. libsndfile uses a compression level in
-        # [0, 1] instead, where 0 is the highest quality.
+        # [0, 1] instead, where 0 is the highest quality. It maps to quality [0, 10] only, so
+        # negative qualities are clipped to 0.
         level = None
         if compression is not None:
+            if compression < 0:
+                logger.warning(f"Vorbis quality {compression} is not supported, using 0 instead")
             level = min(max(1.0 - compression / 10.0, 0.0), 1.0)
         x = _encode_to_buffer(x, sr, format="OGG", subtype="VORBIS", compression_level=level)
     elif codec == "flac":

@@ -16,14 +16,20 @@ from df.utils import download_file, get_cache_dir, get_git_root
 TA_RESAMPLE_SINC = "sinc_interp_hann"
 TA_RESAMPLE_KAISER = "sinc_interp_kaiser"
 
-_SUBTYPE_BITS = {
-    "PCM_S8": 8,
-    "PCM_U8": 8,
-    "PCM_16": 16,
-    "PCM_24": 24,
-    "PCM_32": 32,
-    "FLOAT": 32,
-    "DOUBLE": 64,
+# libsndfile subtype -> (bits_per_sample, torchaudio encoding name)
+_SUBTYPE_META = {
+    "PCM_S8": (8, "PCM_S"),
+    "PCM_U8": (8, "PCM_U"),
+    "PCM_16": (16, "PCM_S"),
+    "PCM_24": (24, "PCM_S"),
+    "PCM_32": (32, "PCM_S"),
+    "FLOAT": (32, "PCM_F"),
+    "DOUBLE": (64, "PCM_F"),
+    "ULAW": (8, "ULAW"),
+    "ALAW": (8, "ALAW"),
+    "VORBIS": (0, "VORBIS"),
+    "OPUS": (0, "OPUS"),
+    "MPEG_LAYER_III": (0, "MP3"),
 }
 
 
@@ -40,12 +46,15 @@ class AudioMetaData:
 
 def audio_info(file: str) -> AudioMetaData:
     i = sf.info(file)
+    bits, encoding = _SUBTYPE_META.get(i.subtype, (0, "UNKNOWN"))
+    if i.format == "FLAC":
+        encoding = "FLAC"  # torchaudio reports the codec for FLAC, not the PCM sample format
     return AudioMetaData(
         sample_rate=i.samplerate,
         num_frames=i.frames,
         num_channels=i.channels,
-        bits_per_sample=_SUBTYPE_BITS.get(i.subtype, 0),
-        encoding=i.subtype,
+        bits_per_sample=bits,
+        encoding=encoding,
     )
 
 
@@ -58,7 +67,9 @@ def load_audio(
         file (str): Path to an audio file.
         sr (int): Optionally resample audio to specified target sampling rate.
         **kwargs: Supported: `num_frames`, `frame_offset`, `channels_first`, `method`
-            (resample method passed to `resample()`).
+            (resample method passed to `resample()`). If `sr` is given, `num_frames` and
+            `frame_offset` are in samples at `sr`, else in samples at the file's sampling rate.
+            `format` is ignored, because libsndfile detects the format from the file header.
 
     Returns:
         audio (Tensor): Audio tensor of shape [C, T], if channels_first=True (default).
@@ -70,14 +81,19 @@ def load_audio(
     num_frames = kwargs.pop("num_frames", -1)
     frame_offset = kwargs.pop("frame_offset", 0)
     channels_first = kwargs.pop("channels_first", True)
-    kwargs.pop("format", None)
+    if kwargs.pop("format", None) is not None:
+        warn_once(
+            "load_audio: ignoring `format`, libsndfile detects the format from the file header"
+        )
     if kwargs:
         warn_once(f"load_audio: ignoring unsupported arguments {list(kwargs)}")
 
     info = audio_info(file)
-    if num_frames > 0 and sr is not None:
-        # num_frames is given at the target sr; convert to the file's sr
-        num_frames = round(num_frames * info.sample_rate / sr)
+    if sr is not None and info.sample_rate != sr:
+        # num_frames and frame_offset are given at the target sr; convert to the file's sr
+        if num_frames > 0:
+            num_frames = round(num_frames * info.sample_rate / sr)
+        frame_offset = round(frame_offset * info.sample_rate / sr)
 
     data, orig_sr = sf.read(
         file, frames=num_frames, start=frame_offset, dtype="float32", always_2d=True
