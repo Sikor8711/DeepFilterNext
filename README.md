@@ -2,8 +2,8 @@
 
 > [!NOTE]
 > **DeepFilterNext** is a fork of [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet) by
-> Hendrik Schröter, updated for modern PyTorch/torchaudio (2.8 and 2.9+), numpy 2 and
-> Python 3.13/3.14. Audio I/O uses soundfile (libsndfile) instead of the torchaudio I/O functions
+> Hendrik Schröter, updated for modern PyTorch/torchaudio (2.9+), numpy 2 and
+> Python 3.12–3.14. Audio I/O uses soundfile (libsndfile) instead of the torchaudio I/O functions
 > that torchaudio 2.9 removed. The models, model weights and inference results are unchanged.
 > All credit for DeepFilterNet goes to the original authors (see [Citation Guide](#citation-guide)).
 > The original licenses apply (see [License](#license)).
@@ -120,10 +120,10 @@ Please read the comments and only execute the commands that you need.
 Installation of python dependencies and libDF:
 ```bash
 cd path/to/DeepFilterNet/  # cd into repository
-# Recommended: Install or activate a python env
-# Mandatory: Install cpu/cuda/rocm pytorch (>=2.8) dependency from pytorch.org, e.g.:
+# Recommended: Install or activate a python env (Python >= 3.12)
+# Mandatory: Install cpu/cuda/rocm pytorch (>=2.9) dependency from pytorch.org, e.g.:
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-# For GPUs use e.g. https://download.pytorch.org/whl/cu128 (NVIDIA) or .../whl/rocm6.4 (AMD)
+# For GPUs use e.g. https://download.pytorch.org/whl/cu130 (NVIDIA) or .../whl/rocm7.2 (AMD)
 # Install build dependencies used to compile libdf and DeepFilterNet python wheels
 pip install maturin poetry
 

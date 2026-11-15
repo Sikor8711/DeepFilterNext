@@ -54,15 +54,6 @@ jobs:
       fail-fast: false
       matrix:
         python:
-          - version: "3.9"
-            tag: "39"
-            abi: cp39-cp39
-          - version: "3.10"
-            tag: "310"
-            abi: cp310-cp310
-          - version: "3.11"
-            tag: "311"
-            abi: cp311-cp311
           - version: "3.12"
             tag: "312"
             abi: cp312-cp312
@@ -199,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10"] # wheel will be independent of python version
+        python-version: ["3.12"] # wheel will be independent of python version
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -258,10 +249,12 @@ jobs:
         manylinux: [2014]
         python:
           # CPython
-          - version: "3.9"
-            abi: cp39-cp39
-          - version: "3.10"
-            abi: cp310-cp310
+          - version: "3.12"
+            abi: cp312-cp312
+          - version: "3.13"
+            abi: cp313-cp313
+          - version: "3.14"
+            abi: cp314-cp314
         platform:
           - target: aarch64-unknown-linux-gnu
             arch: aarch64

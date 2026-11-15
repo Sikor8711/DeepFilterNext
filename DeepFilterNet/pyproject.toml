@@ -25,8 +25,8 @@ include = [
 [tool.poetry.dependencies]
 deepfilterlib = { path = "../pyDF/" }
 deepfilterdataloader = { path = "../pyDF-data/", optional = true }
-python = ">=3.9,<4.0"
-numpy = ">=1.22"
+python = ">=3.12,<4.0"
+numpy = ">=2"
 loguru = ">=0.5"
 appdirs = "^1.4"
 requests = "^2.27"
@@ -52,9 +52,11 @@ deep-filter-py = "df.enhance:run"
 poethepoet = "^0.26"
 
 [tool.poe.tasks]
-install-torch-cpu = "pip install 'torch>=2.8' 'torchaudio>=2.8' --index-url https://download.pytorch.org/whl/cpu"
-install-torch-cu128 = "pip install 'torch>=2.8' 'torchaudio>=2.8' --index-url https://download.pytorch.org/whl/cu128"
-install-torch-rocm64 = "pip install 'torch>=2.8' 'torchaudio>=2.8' --index-url https://download.pytorch.org/whl/rocm6.4"
+# cu130 and rocm7.2 are the newest indexes that have both torch and torchaudio 2.11 (the last
+# torchaudio release).
+install-torch-cpu = "pip install 'torch>=2.9' 'torchaudio>=2.9' --index-url https://download.pytorch.org/whl/cpu"
+install-torch-cu130 = "pip install 'torch>=2.9' 'torchaudio>=2.9' --index-url https://download.pytorch.org/whl/cu130"
+install-torch-rocm72 = "pip install 'torch>=2.9' 'torchaudio>=2.9' --index-url https://download.pytorch.org/whl/rocm7.2"
 install-eval-utils = "python -m pip install -r requirements_eval.txt"
 install-dnsmos-utils = "python -m pip install -r requirements_dnsmos.txt"
 
@@ -64,7 +66,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 100
-target-version = ["py39", "py310", "py311", "py312", "py313"]
+target-version = ["py312", "py313", "py314"]
 include = '\.pyi?$'
 
 [tool.isort]
